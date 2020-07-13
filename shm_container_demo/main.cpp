@@ -4,16 +4,16 @@
 #include <thread>
 
 #include "shmc/posix_shm_alloc.h"
-#include "shmc/shm_sync_buf.h"
+#include "shmc/shm_sync_buf_spmc.h"
 
-using namespace shmc;
+using namespace shmc::shm_sync_buf_spmc;
 
 constexpr const char* kShmKey = "0x10005";
 constexpr size_t kSyncBufSize = 1024 * 1024 * 100;
 
-POSIX p;
-shmc::ShmSyncBuf<POSIX> sync_buf_w;
-shmc::ShmSyncBuf<POSIX> sync_buf_r;
+shmc::POSIX p;
+ShmSyncBuf<shmc::POSIX> sync_buf_w;
+ShmSyncBuf<shmc::POSIX> sync_buf_r;
 
 void Thread1() {
   char acMsg[1024] = {0};
@@ -31,10 +31,10 @@ void Thread1() {
 void Thread2(int tid) {
   int iRet = 0;
   uint64_t iPreSeq = 0;
-  shmc::SyncIter it = sync_buf_r.Head();
+  SyncIter it = sync_buf_r.Head();
   char buf[1024] = {0};
   size_t len = sizeof(buf);
-  shmc::SyncMeta meta;
+  SyncMeta meta;
   while (true) {
     iRet = sync_buf_r.Read(it, &meta, buf, &len);
     if (iRet < 0) {
