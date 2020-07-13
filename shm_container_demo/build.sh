@@ -1,1 +1,2 @@
-g++ main.cpp -o main -Ishm_container/src -std=c++0x -pthread -lrt
+g++ test1.cpp -o test1 -Ishm_container/src -std=c++0x -pthread -lrt
+g++ test2.cpp -o test2 -Ishm_container/src -std=c++0x -pthread -lrt

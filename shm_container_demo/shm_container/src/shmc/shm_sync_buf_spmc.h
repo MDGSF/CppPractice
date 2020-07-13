@@ -27,8 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SHMC_SHM_SYNC_BUF_H_
-#define SHMC_SHM_SYNC_BUF_H_
+#ifndef SHMC_SHM_SYNC_BUF_SPMC_H_
+#define SHMC_SHM_SYNC_BUF_SPMC_H_
 
 #include <assert.h>
 #include <sys/time.h>
@@ -48,6 +48,8 @@ namespace shm_sync_buf_spmc {
 struct SyncMeta {
   uint64_t seq;
   timeval time;
+  uint32_t len;
+  char* data;
 };
 
 /* Iterator for reading SyncBuf
@@ -215,7 +217,7 @@ class ShmSyncBuf {
    *           0 if iterator is at tail of the queue and no data to read now,
    *          -1 if error found
    */
-  int Read(const SyncIter& it, SyncMeta* meta, void* buf, size_t* len) const;
+  int Read(SyncIter* it, SyncMeta* meta, void* buf, size_t* len);
 
   /* Read data node pointed by the iterator
    * @it    iterator to read
@@ -228,7 +230,7 @@ class ShmSyncBuf {
    *           0 if iterator is at tail of the queue and no data to read now,
    *          -1 if error found
    */
-  int Read(const SyncIter& it, SyncMeta* meta, std::string* out) const;
+  int Read(SyncIter* it, SyncMeta* meta, std::string* out);
 
   /* Read data node pointed by the iterator
    * @it    iterator to read
@@ -240,7 +242,7 @@ class ShmSyncBuf {
    *           0 if iterator is at tail of the queue and no data to read now,
    *          -1 if error found
    */
-  int Read(const SyncIter& it, SyncMeta* meta) const {
+  int Read(SyncIter* it, SyncMeta* meta) {
     size_t len = 0;
     return Read(it, meta, nullptr, &len);
   }
@@ -294,7 +296,7 @@ class ShmSyncBuf {
 
   static constexpr uint16_t kStartTag = 0x57c0;
   static constexpr uint16_t kEndTag = 0x57c1;
-  static constexpr size_t kOverwriteBufferSize = 1024 * 16;
+  static constexpr size_t kOverwriteBufferSize = 1024 * 1024;
 
   struct SyncNodeHead {
     volatile std::atomic<uint16_t> start_tag;
@@ -332,13 +334,13 @@ class ShmSyncBuf {
   static size_t GetNodeSize(size_t node_data_len) {
     return min_node_size() + Utils::RoundAlign<8>(node_data_len);
   }
-  const volatile SyncNodeHead* GetSyncNodeHead(uint64_t pos) const {
+  volatile SyncNodeHead* GetSyncNodeHead(uint64_t pos) const {
     if (!IsValidNodeHeadPos(pos)) {
       Utils::Log(kDebug, "GetSyncNodeHead 1\n");
       return nullptr;
     }
     const volatile char* sync_buf = sync_buf_ptr();
-    auto node_head = (const volatile SyncNodeHead*)(&sync_buf[pos]);
+    auto node_head = (volatile SyncNodeHead*)(&sync_buf[pos]);
     if (node_head->start_tag != kStartTag) {
       Utils::Log(kDebug, "GetSyncNodeHead 2\n");
       return nullptr;
@@ -487,27 +489,45 @@ bool ShmSyncBuf<Alloc>::Push(const void* buf, size_t len, const timeval& ts) {
   constexpr size_t max_free_nodes = 10 + kOverwriteBufferSize / min_node_size();
   size_t new_node_size = GetNodeSize(len);
   if (new_node_size + kOverwriteBufferSize > sync_buf_size) {
+    printf(
+        "too big, new_node_size = %lu, kOverwriteBufferSize = %lu, "
+        "sync_buf_size "
+        "= %lu\n",
+        new_node_size, kOverwriteBufferSize, sync_buf_size);
     return false;  // too big
   }
   size_t free_count = 0;
   SyncIter it = Head();
   while (GetFreeSize() < new_node_size + kOverwriteBufferSize) {
     if (!Next(&it)) {
+      printf("next failed\n");
       return false;
     }
     shm_->head_pos = it.pos;
     if (++free_count > max_free_nodes) {
+      printf("free count too big, free_count = %lu, max_free_nodes = %lu\n",
+             free_count, max_free_nodes);
       return false;
     }
   }
   // write new node
   uint64_t tail_pos = shm_->tail_pos;
+  uint64_t old_tail_pos = tail_pos;
+
   if ((tail_pos & 0x7UL) != 0) {
+    printf("invalid tail_pos = %lu", tail_pos);
     return false;  // shm data maybe corrupted
   }
   if (tail_pos + sizeof(SyncNodeHead) > sync_buf_size) {
+    printf("invalid tail_pos = %lu, sync_buf_size = %lu", tail_pos,
+           sync_buf_size);
     return false;  // shm data maybe corrupted
   }
+
+  if (tail_pos + new_node_size >= sync_buf_size) {
+    tail_pos = 0;
+  }
+
   // write new node head
   auto node_head = (volatile SyncNodeHead*)(sync_buf_ptr() + tail_pos);
   node_head->start_tag = kStartTag;
@@ -515,24 +535,21 @@ bool ShmSyncBuf<Alloc>::Push(const void* buf, size_t len, const timeval& ts) {
   node_head->seq = shm_->next_seq;
   node_head->time_sec = ts.tv_sec;
   node_head->time_usec = ts.tv_usec;
+
   // write new node data
-  size_t ntail_off = GetNodeTailOffset(len);
-  if (tail_pos + ntail_off <= sync_buf_size) {
-    memcpy(const_cast<char*>(node_head->data), buf, len);
-  } else {
-    size_t part_len = sync_buf_size - (tail_pos + sizeof(SyncNodeHead));
-    memcpy(const_cast<char*>(node_head->data), buf, part_len);
-    memcpy(const_cast<char*>(sync_buf_ptr()),
-           static_cast<const char*>(buf) + part_len, len - part_len);
-  }
+  memcpy(const_cast<char*>(node_head->data), buf, len);
+
   // write new node tail
+  size_t ntail_off = GetNodeTailOffset(len);
   uint64_t node_tail_pos = PosAdd(tail_pos, ntail_off);
   if ((node_tail_pos & 0x7UL) != 0) {
+    printf("invalid node_tail_pos = %lu\n", node_tail_pos);
     return false;  // shm data maybe corrupted
   }
   auto node_tail = (volatile SyncNodeTail*)(sync_buf_ptr() + node_tail_pos);
   node_tail->end_tag = kEndTag;
   node_tail->len = len;
+
   // commit new node
   size_t seq_idx_off = shm_->next_seq % shm_->seq_index_size;
   shm_->seq_index[seq_idx_off] = static_cast<uint32_t>(tail_pos >> 3);
@@ -541,6 +558,12 @@ bool ShmSyncBuf<Alloc>::Push(const void* buf, size_t len, const timeval& ts) {
   if (new_tail_pos + sizeof(SyncNodeHead) > sync_buf_size) {
     new_tail_pos = 0;
   }
+
+  if (new_tail_pos < old_tail_pos) {
+    printf("old_tail_pos = %lu, new_tail_pos = %lu\n", old_tail_pos,
+           new_tail_pos);
+  }
+
   shm_->tail_pos = new_tail_pos;
   return true;
 }
@@ -562,15 +585,23 @@ bool ShmSyncBuf<Alloc>::Next(SyncIter* it) const {
   assert(shm_.is_initialized());
   uint64_t tail_pos = shm_->tail_pos;
   if (it->pos == tail_pos) {
+    printf("it->pos = %lu, tail_pos = %lu\n", it->pos, tail_pos);
     return false;
   }
-  const volatile SyncNodeHead* node_head = GetSyncNodeHead(it->pos);
+  volatile SyncNodeHead* node_head = GetSyncNodeHead(it->pos);
   if (!node_head) {
-    it->pos = tail_pos;
-    return false;
+    printf("invalid node_head, it->pos = %lu\n", it->pos);
+    it->pos = 0;
+    node_head = GetSyncNodeHead(it->pos);
+    if (!node_head) {
+      printf("invalid node_head, it->pos = %lu\n", it->pos);
+      it->pos = tail_pos;
+      return false;
+    }
   }
   size_t data_len = node_head->len;
   if (GetNodeSize(data_len) > PosOff(tail_pos, it->pos)) {
+    printf("invalid data_len = %lu, it->pos = %lu\n", data_len, it->pos);
     it->pos = tail_pos;
     return false;
   }
@@ -632,36 +663,47 @@ bool ShmSyncBuf<Alloc>::FindByTime(const timeval& ts, SyncIter* it) const {
 }
 
 template <class Alloc>
-int ShmSyncBuf<Alloc>::Read(const SyncIter& it, SyncMeta* meta, void* buf,
-                            size_t* len) const {
+int ShmSyncBuf<Alloc>::Read(SyncIter* it, SyncMeta* meta, void* buf,
+                            size_t* len) {
   assert(shm_.is_initialized());
   uint64_t tail_pos = shm_->tail_pos;
-  if (it.pos == tail_pos) {
+  if (it->pos == tail_pos) {
     meta->seq = shm_->next_seq;
     memset(&meta->time, 0, sizeof meta->time);
+    meta->len = 0;
+    meta->data = NULL;
     return 0;
   }
-  const volatile SyncNodeHead* node_head = GetSyncNodeHead(it.pos);
+  volatile SyncNodeHead* node_head = GetSyncNodeHead(it->pos);
   if (!node_head) {
     Utils::Log(kWarning, "ShmSyncBuf::Read: GetSyncNodeHead(%lu) fail\n",
-               it.pos);
-    return -1;
+               it->pos);
+    it->pos = 0;
+    node_head = GetSyncNodeHead(it->pos);
+    if (!node_head) {
+      Utils::Log(kWarning, "ShmSyncBuf::Read: GetSyncNodeHead(%lu) fail\n",
+                 it->pos);
+      return -1;
+    }
   }
   size_t data_len = node_head->len;
-  if (GetNodeSize(data_len) > PosOff(tail_pos, it.pos)) {
+  if (GetNodeSize(data_len) > PosOff(tail_pos, it->pos)) {
     Utils::Log(kWarning, "ShmSyncBuf::Read: bad node size\n");
     return -1;
   }
   meta->seq = node_head->seq;
   meta->time.tv_sec = node_head->time_sec;
   meta->time.tv_usec = node_head->time_usec;
+  meta->len = node_head->len;
+  meta->data = const_cast<char*>(node_head->data);
+
   size_t buf_len = *len;
   *len = data_len;
   if (buf_len == 0) {  // only read meta
     return 1;
   }
   // check node tail
-  uint64_t t_pos = PosAdd(it.pos, GetNodeTailOffset(data_len));
+  uint64_t t_pos = PosAdd(it->pos, GetNodeTailOffset(data_len));
   const volatile SyncNodeTail* node_tail = GetSyncNodeTail(t_pos);
   if (!node_tail || node_tail->len != data_len) {
     Utils::Log(kWarning, "ShmSyncBuf::Read: GetSyncNodeTail(%lu) fail\n",
@@ -671,21 +713,17 @@ int ShmSyncBuf<Alloc>::Read(const SyncIter& it, SyncMeta* meta, void* buf,
   // read data
   size_t copy_len = (data_len < buf_len ? data_len : buf_len);
   size_t sync_buf_size = shm_->sync_buf_size;
-  if (it.pos + GetNodeTailOffset(data_len) <= sync_buf_size) {
+  if (it->pos + GetNodeTailOffset(data_len) <= sync_buf_size) {
     memcpy(buf, const_cast<char*>(node_head->data), copy_len);
   } else {
-    size_t part_len = sync_buf_size - (it.pos + sizeof(SyncNodeHead));
-    size_t first_copy_len = (copy_len < part_len ? copy_len : part_len);
-    memcpy(buf, const_cast<char*>(node_head->data), first_copy_len);
-    memcpy(static_cast<char*>(buf) + first_copy_len,
-           const_cast<char*>(sync_buf_ptr()), copy_len - first_copy_len);
+    Utils::Log(kWarning, "ShmSyncBuf::Read: node data accross tail\n");
+    return -1;
   }
   return 1;
 }
 
 template <class Alloc>
-int ShmSyncBuf<Alloc>::Read(const SyncIter& it, SyncMeta* meta,
-                            std::string* out) const {
+int ShmSyncBuf<Alloc>::Read(SyncIter* it, SyncMeta* meta, std::string* out) {
   size_t len = 0;
   int r;
   if ((r = Read(it, meta, nullptr, &len)) <= 0) {
@@ -705,4 +743,4 @@ int ShmSyncBuf<Alloc>::Read(const SyncIter& it, SyncMeta* meta,
 
 }  // namespace shmc
 
-#endif  // SHMC_SHM_SYNC_BUF_H_
+#endif  // SHMC_SHM_SYNC_BUF_SPMC_H_
