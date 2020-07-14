@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <sys/time.h>
 
+#include <fstream>
 #include <iostream>
 #include <thread>
+using namespace std;
 
 #include "shmc/posix_shm_alloc.h"
 #include "shmc/shm_sync_buf_spmc.h"
@@ -33,12 +35,19 @@ void gen_random(char* s, const int len) {
 
 void Thread1() {
   printf("Thread Write start\n");
-  for (uint16_t i = 0;; i++) {
+
+  ofstream myfile;
+  myfile.open("producer.txt");
+
+  for (uint16_t i = 1;; i++) {
     char acMsg[2048] = {0};
     char acRandom[1024] = {0};
     int iRandonNumber = rand() % (sizeof(acRandom) - 1);
     gen_random(acRandom, iRandonNumber);
     sprintf(acMsg, "%d: %s", i, acRandom);
+
+    myfile.write(acMsg, strlen(acMsg));
+    myfile.write("\n", 1);
 
     timeval ts{time(nullptr), 0};
 
@@ -46,7 +55,7 @@ void Thread1() {
       printf("write loop: [%lu] %s\n", ts.tv_sec, acMsg);
     }
 
-    if (!sync_buf_w.Push(acMsg, strlen(acMsg) + 1, ts)) {
+    if (!sync_buf_w.Push(acMsg, strlen(acMsg), ts)) {
       printf("write failed\n");
       exit(-1);
     }
@@ -60,6 +69,11 @@ void Thread2(int tid) {
   uint64_t iPreSeq = 0;
   SyncIter it = sync_buf_r.Head();
   int iPreBufIdx = -1;
+
+  char acFileName[128] = {0};
+  sprintf(acFileName, "consumer_%d.txt", tid);
+  ofstream myfile;
+  myfile.open(acFileName);
 
   while (true) {
     SyncMeta meta;
@@ -75,6 +89,9 @@ void Thread2(int tid) {
       size_t data_len = meta.len;
       size_t copy_len = (data_len < buf_len ? data_len : buf_len);
       memcpy(buf, meta.data, copy_len);
+
+      myfile.write(buf, copy_len);
+      myfile.write("\n", 1);
 
       if (iPreBufIdx % 5000 == 0) {
         printf("[%02d]: [%lu %lu %lu], [%zu] %s\n", tid, meta.seq,
@@ -115,14 +132,14 @@ int main() {
   sync_buf_w.InitForWrite(kShmKey, kSyncBufSize);
   sync_buf_r.InitForRead(kShmKey);
 
-  std::thread myThreads[100];
-  for (int i = 0; i < 100; i++) {
+  std::thread myThreads[10];
+  for (int i = 0; i < 10; i++) {
     myThreads[i] = std::thread(Thread2, i);
   }
   std::thread t1(Thread1);
 
   t1.join();
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 10; i++) {
     myThreads[i].join();
   }
 
