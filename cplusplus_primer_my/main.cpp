@@ -1,7 +1,6 @@
 #include <iostream>
 
 int main() {
-  int i = 3;
-  void* p = &i;
+  int null = 0, *p = &null;
   return 0;
 }
