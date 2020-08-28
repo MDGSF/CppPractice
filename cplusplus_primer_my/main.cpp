@@ -1,6 +1,6 @@
-#include <iostream>
+#include "public.h"
 
 int main() {
-  int null = 0, *p = &null;
+  std::cout << (1 << 10) << std::endl;
   return 0;
 }
