@@ -31,3 +31,26 @@ cmake -DUSE_MYPATH=off ../Step2
 cmake --build .
 ```
 
+### Step12
+
+```bash
+cd Step12
+mkdir debug
+mkdir release
+```
+
+```txt
+- Step12
+    - debug
+    - release
+```
+
+```bash
+cd debug
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build .
+cd ../release
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build .
+```
+
