@@ -44,8 +44,10 @@ int main(int argc, char **argv) {
 
     if (bFile1ExistsLine && bFile2ExistsLine) {
       if (line1 != line2) {
-        cout << "line1 = " << line1;
-        cout << "line2 = " << line2;
+        cout << "lineCount1 = "<< lineCount1 << std::endl;
+        cout << "lineCount2 = "<< lineCount2 << std::endl;
+        cout << "line1 = " << line1 << std::endl;
+        cout << "line2 = " << line2 << std::endl;
         exit(0);
       }
     }
