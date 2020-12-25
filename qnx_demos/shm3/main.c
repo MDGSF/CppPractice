@@ -6,7 +6,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   int fd;
   unsigned *addr;
 
