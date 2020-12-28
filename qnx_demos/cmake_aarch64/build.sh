@@ -12,6 +12,7 @@ cd $BUILD_DIR
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=aarch64-qnx.toolchain.cmake \
   $PROJECT_DIR
 
 make -j $(nproc)

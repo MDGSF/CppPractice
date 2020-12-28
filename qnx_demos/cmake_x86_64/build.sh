@@ -10,8 +10,8 @@ cd "$PROJECT_DIR"
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 
-cmake \
-  -DCMAKE_BUILD_TYPE=Release \
+cmake -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=x86_64-qnx.toolchain.cmake \
   $PROJECT_DIR
 
 make -j $(nproc)

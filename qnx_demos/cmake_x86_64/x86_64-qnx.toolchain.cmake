@@ -1,42 +1,19 @@
-cmake_minimum_required(VERSION 3.5)
 set(CMAKE_SYSTEM_NAME QNX)
-set(CMAKE_SYSTEM_VERSION 1)
-set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
-set(QNX_VERSION "qnx7.0.0")
-set(CMAKE_AS "$ENV{QNX_HOST}/usr/bin/${CMAKE_SYSTEM_PROCESSOR}-pc-nto-${QNX_VERSION}-as")
-set(CMAKE_C_COMPILER "$ENV{QNX_HOST}/usr/bin/${CMAKE_SYSTEM_PROCESSOR}-pc-nto-${QNX_VERSION}-gcc")
-set(CMAKE_CXX_COMPILER "$ENV{QNX_HOST}/usr/bin/${CMAKE_SYSTEM_PROCESSOR}-pc-nto-${QNX_VERSION}-g++")
-set(CMAKE_CUDA_HOST_COMPILER "${CMAKE_CXX_COMPILER}")
+set(arch gcc_ntox86_64)
+set(ntoarch x86_64)
+set(QNX_PROCESSOR x86_64)
 
-#add_definitions(-D__AARCH64_QNX__)
-add_definitions(-D_POSIX_C_SOURCE=200112L -D_QNX_SOURCE -D_FILE_OFFSET_BITS=64)
-message("Compiler settings for qnx ${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -fPIC -D_XOPEN_SOURCE=600")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -D_XOPEN_SOURCE=600 -std=gnu99")
+set(CMAKE_C_COMPILER qcc)
+set(CMAKE_C_COMPILER_TARGET ${arch})
 
-set(CMAKE_CXX_COMPILER_TARGET_FORCED TRUE)
-set(CMAKE_C_COMPILER_TARGET_FORCED TRUE)
-set(CMAKE_C_COMPILER_TARGET x86_64)
-set(CMAKE_CXX_COMPILER_TARGET x86_64)
-set(CMAKE_LINKER $ENV{QNX_HOST}/usr/bin/${CMAKE_SYSTEM_PROCESSOR}-pc-nto-${QNX_VERSION}-ld)
-set(LINKER_FLAGS "-Wl,--no-undefined -Wl,--gc-sections -Wl,-z,relro -Wl,-z,now,-lc")
+set(CMAKE_CXX_COMPILER qcc -lang-c++)
+set(CMAKE_CXX_COMPILER_TARGET ${arch})
 
-set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".so,.a")
+set(CMAKE_ASM_COMPILER qcc -V${arch})
+set(CMAKE_ASM_DEFINE_FLAG "-Wa,--defsym,")
 
-set(CMAKE_SHARED_LINKER_FLAGS "${LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
-set(CMAKE_MODULE_LINKER_FLAGS "${LINKER_FLAGS} ${CMAKE_MODULE_LINKER_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS "${LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS}")
-
-#set(CMAKE_SYSTEM_PREFIX_PATH "/usr/aarch64-unknown-nto-qnx/aarch64le")
-
-message("Including the header directories")
-include_directories(
-  $ENV{QNX_TARGET}/usr/include
-  $ENV{QNX_TARGET}/usr/include/x86_64
-  $ENV{QNX_TARGET}/usr/include/c++/v1
-  set(CMAKE_FIND_ROOT_PATH  $ENV{QNX_TARGET})
-  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-)
+set(CMAKE_RANLIB $ENV{QNX_HOST}/usr/bin/nto${ntoarch}-ranlib
+    CACHE PATH "QNX ranlib Program" FORCE)
+set(CMAKE_AR $ENV{QNX_HOST}/usr/bin/nto${ntoarch}-ar
+    CACHE PATH "QNX qr Program" FORCE)
