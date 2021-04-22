@@ -1,31 +1,35 @@
 #include "widget.h"
 
-class widget::impl {
-  int n;  // private data
-
+class Widget::WidgetImpl {
  public:
-  void draw(const widget& w) const {
+  WidgetImpl(int n) : n(n) {}
+
+  void draw(const Widget& w) const {
     // this call to public member function requires the back-reference
     if (w.shown()) {
-      std::cout << "drawing a const widget " << n << '\n';
+      std::cout << "drawing a const Widget " << n << '\n';
     }
   }
-  void draw(const widget& w) {
+
+  void draw(const Widget& w) {
     if (w.shown()) {
-      std::cout << "drawing a non-const widget " << n << '\n';
+      std::cout << "drawing a non-const Widget " << n << '\n';
     }
   }
-  impl(int n) : n(n) {}
+
+ private:
+  int n;
 };
 
-void widget::draw() const { pImpl->draw(*this); }
+Widget::Widget(int n) : m_impl{new WidgetImpl(n)} {}
 
-void widget::draw() { pImpl->draw(*this); }
+Widget::~Widget() = default;
 
-widget::widget(int n) : pImpl{std::make_unique<impl>(n)} {}
+Widget::Widget(Widget&&) = default;
 
-widget::widget(widget&&) = default;
+Widget& Widget::operator=(Widget&&) = default;
 
-widget::~widget() = default;
+void Widget::draw() const { m_impl->draw(*this); }
 
-widget& widget::operator=(widget&&) = default;
+void Widget::draw() { m_impl->draw(*this); }
+

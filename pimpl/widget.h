@@ -1,18 +1,22 @@
 #include <iostream>
 #include <memory>
 
-class widget {
-  class impl;
-  std::unique_ptr<impl> pImpl;
-
+class Widget {
  public:
+  Widget(int);
+  ~Widget();
+
+  Widget(const Widget&) = delete;
+  Widget& operator=(const Widget&) = delete;
+
+  Widget(Widget&&);
+  Widget& operator=(Widget&&);
+
   void draw() const;
   void draw();
   bool shown() const { return true; }
-  widget(int);
-  ~widget();
-  widget(widget&&);
-  widget(const widget&) = delete;
-  widget& operator=(widget&&);
-  widget& operator=(const widget&) = delete;
+
+ private:
+  class WidgetImpl;
+  std::unique_ptr<WidgetImpl> m_impl;
 };
