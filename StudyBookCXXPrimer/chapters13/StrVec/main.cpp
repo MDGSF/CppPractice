@@ -15,13 +15,10 @@
 #include <utility>
 #include <vector>
 
+#include "str_vec.h"
+
 using std::cout;
 using std::endl;
-
-class StrVec {
- public:
- private:
-};
 
 int main() {
   cout << "hello world!" << endl;
