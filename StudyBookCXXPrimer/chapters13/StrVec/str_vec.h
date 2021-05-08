@@ -26,6 +26,9 @@ class StrVec {
   StrVec(const StrVec &s);
   StrVec &operator=(const StrVec &rhs);
 
+  StrVec(StrVec &&s) noexcept;
+  StrVec &operator=(StrVec &&rhs) noexcept;
+
   void push_back(const std::string &s);
   void pop_back();
 

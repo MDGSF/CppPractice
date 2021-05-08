@@ -23,6 +23,26 @@ StrVec &StrVec::operator=(const StrVec &rhs) {
   return *this;
 }
 
+StrVec::StrVec(StrVec &&s) noexcept
+    : elements(s.elements), first_free(s.first_free), cap(s.cap) {
+  s.elements = nullptr;
+  s.first_free = nullptr;
+  s.cap = nullptr;
+}
+
+StrVec &StrVec::operator=(StrVec &&rhs) noexcept {
+  if (this != &rhs) {
+    free();
+    elements = rhs.elements;
+    first_free = rhs.first_free;
+    cap = rhs.cap;
+    rhs.elements = nullptr;
+    rhs.first_free = nullptr;
+    rhs.cap = nullptr;
+  }
+  return *this;
+}
+
 void StrVec::push_back(const std::string &s) {
   chk_n_alloc();
   alloc.construct(first_free++, s);
@@ -68,7 +88,7 @@ void StrVec::resize(size_type n, const std::string &s) {
     for (int i = n - size(); i != 0; --i) {
       push_back(s);
     }
-  } else if(n < size()) {
+  } else if (n < size()) {
     for (int i = size() - n; i != 0; --i) {
       pop_back();
     }
