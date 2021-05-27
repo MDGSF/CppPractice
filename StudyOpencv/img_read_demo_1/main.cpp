@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "opencv2/opencv.hpp"
+#include "basic.h"
 
 using namespace cv;
 using namespace std;
@@ -27,12 +28,14 @@ IMREAD_ANYCOLOR 任意图像
 */
 
 int main(int argc, char* argv[]) {
-  // flags=IMREAD_GRAYSCALE，输入彩色图像，会进行灰度化处理
   // cv::Mat img = cv::imread(argv[1], IMREAD_GRAYSCALE);
   cv::Mat img = cv::imread(argv[1], IMREAD_ANYCOLOR);
   if (!img.data) {
     return -1;
   }
+
+  print_meta_mat(img);
+
   cv::imshow("image", img);
   cv::waitKey(0);
   return 0;

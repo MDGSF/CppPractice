@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
   // 输出矩阵
   for (int r = 0; r < m.rows; r++) {
     for (int c = 0; c < m.cols; c++) {
-      cout << m.at<int>(r, c) << ", "; //第r行第c列的值
+      cout << m.at<int>(r, c) << ", ";  //第r行第c列的值
     }
     cout << endl;
   }
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
   // 输出矩阵
   for (int r = 0; r < m.rows; r++) {
     // 得到第r行行首的地址
-    const int *ptr = m.ptr<int>(r);
+    const int* ptr = m.ptr<int>(r);
 
     // 打印第r行的所有值
     for (int c = 0; c < m.cols; c++) {
@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
   // 即所有的值都是连续存储的
   if (m.isContinuous()) {
     cout << "m is continuous" << endl;
-    int * ptr = m.ptr<int>(0);
+    int* ptr = m.ptr<int>(0);
     for (int n = 0; n < m.rows * m.cols; n++) {
       cout << ptr[n] << ", ";
     }
@@ -88,6 +88,18 @@ int main(int argc, char* argv[]) {
   } else {
     cout << "m is not continuous" << endl;
   }
+  cout << endl;
+
+  // m.data 指向第一个数值的指针
+  // m.step[0] 表示一行所占的字节数，包括行与行之间的间隔
+  // m.step[1] 表示每一个数值所占的字节数
+  for (int r = 0; r < m.rows; r++) {
+    for (int c = 0; c < m.cols; c++) {
+      cout << *((int*)(m.data + m.step[0] * r + c * m.step[1])) << " ";
+    }
+    cout << endl;
+  }
+  cout << endl;
 
   return 0;
 }

@@ -17,23 +17,16 @@
 using namespace cv;
 using namespace std;
 
-/*
-Mat imread(const string\& filename, int flags=1)
-
-flags 取值
-IMREAD_COLOR 彩色图像
-IMREAD_GRAYSCALE 灰度图像
-IMREAD_ANYCOLOR 任意图像
-*/
-
 int main(int argc, char* argv[]) {
-  // flags=IMREAD_GRAYSCALE，输入彩色图像，会进行灰度化处理
-  // cv::Mat img = cv::imread(argv[1], IMREAD_GRAYSCALE);
-  cv::Mat img = cv::imread(argv[1], IMREAD_ANYCOLOR);
-  if (!img.data) {
-    return -1;
-  }
-  cv::imshow("image", img);
-  cv::waitKey(0);
+  // 最后一个参数指定了输出矩阵的类型
+  // 如果最后一个参数不填，使用默认值-1，那么src1和src2的类型必须相同
+  cv::Mat src1 = (cv::Mat_<uchar>(2, 3) << 23, 123, 90, 100, 250, 0);
+  cv::Mat src2 = (cv::Mat_<float>(2, 3) << 125, 150, 60, 100, 10, 40);
+  cv::Mat dst;
+  cv::add(src1, src2, dst, cv::Mat(), CV_64FC1);
+
+  cout << src1 << endl << endl;
+  cout << src2 << endl << endl;
+  cout << dst << endl << endl;
   return 0;
 }
