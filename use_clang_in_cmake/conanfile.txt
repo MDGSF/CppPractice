@@ -1,0 +1,11 @@
+[requires]
+cli11/1.9.1
+
+[generators]
+cmake
+
+[imports]
+#bin, * -> ./conan_bin
+#lib, * -> ./conan_runtime
+include, * -> ./conan_include
+

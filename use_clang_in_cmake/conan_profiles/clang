@@ -1,0 +1,14 @@
+[settings]
+os=Linux
+os_build=Linux
+arch=x86_64
+arch_build=x86_64
+compiler=clang
+compiler.version=9.0
+compiler.libcxx=libstdc++
+build_type=Release
+
+[env]
+CC=/home/huangjian/local/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-16.04/bin/clang
+CXX=/home/huangjian/local/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-16.04/bin/clang++
+
