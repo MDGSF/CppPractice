@@ -1,3 +1,12 @@
+/*
+存在问题：
+1. producer 更新了 tail_，但是数据还没有写入完成。
+2. consumer 就可能读取到写入了一半的数据。
+*/
+
+#ifndef RING01_HPP
+#define RING01_HPP
+
 #include <atomic>
 #include <thread>
 #include <vector>
@@ -14,8 +23,8 @@ class Ring {
   virtual ~Ring() = default;
   Ring(const Ring&) = delete;
   Ring& operator=(const Ring&) = delete;
-  Ring(const Ring&&) = default;
-  Ring& operator=(const Ring&&) = default;
+  Ring(Ring&&) = default;
+  Ring& operator=(Ring&&) = default;
 
   bool push(T item) {
     uint64_t old_head = head_.load();
@@ -74,3 +83,5 @@ class Ring {
   std::atomic<uint64_t> tail_;
   std::vector<T> elements_;
 };
+
+#endif
