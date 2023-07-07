@@ -1,3 +1,7 @@
+/*
+多个生产者，多个消费者。
+每个消息只能被消费一次。
+*/
 #ifndef RING02_HPP
 #define RING02_HPP
 
